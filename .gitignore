@@ -43,3 +43,5 @@ HELP.md
 *.bak
 *.swp
 *~
+# Application properties with secrets
+src/main/resources/application.properties
