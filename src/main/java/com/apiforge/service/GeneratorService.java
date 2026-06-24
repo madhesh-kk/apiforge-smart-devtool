@@ -5,6 +5,8 @@ import com.apiforge.model.EndpointInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+
 @Service
 @Slf4j
 public class GeneratorService {
@@ -12,13 +14,18 @@ public class GeneratorService {
     public String generateJavaWrapper(ApiForgeResponse response, String apiName) {
         log.info("Generating Java wrapper for API: {}", apiName);
 
-        if (response == null || response.getEndpoints() == null || response.getEndpoints().isEmpty()) {
+        if (response == null || response.getEndpoints() == null) {
             log.warn("No endpoints found in response for API: {}", apiName);
-            return "";
+            return "// No endpoints found";
+        }
+
+        if (response.getEndpoints().isEmpty()) {
+            log.warn("Empty endpoints list for API: {}", apiName);
+            return "// No endpoints found";
         }
 
         StringBuilder code = new StringBuilder();
-        String className = capitalizeFirstLetter(apiName) + "Wrapper";
+        String className = generateClassName(apiName);
         String baseUrl = response.getBaseUrl() != null ? response.getBaseUrl() : "https://api.example.com";
         String authMethod = response.getAuthMethod() != null ? response.getAuthMethod() : "Bearer Token";
 
@@ -156,6 +163,53 @@ public class GeneratorService {
         }
         
         return methodName.toString();
+    }
+
+    private String generateClassName(String apiName) {
+        String nameSource = apiName;
+
+        try {
+            URI uri = URI.create(apiName);
+            String host = uri.getHost();
+            String path = uri.getPath();
+
+            if (host != null && !host.isBlank()) {
+                host = host.replaceFirst("^www\\.", "");
+                String[] hostParts = host.split("\\.");
+                nameSource = hostParts.length > 0 ? hostParts[0] : host;
+
+                if (path != null && !path.isBlank()) {
+                    String[] pathParts = path.split("/");
+                    for (int i = pathParts.length - 1; i >= 0; i--) {
+                        if (!pathParts[i].isBlank()) {
+                            nameSource += " " + pathParts[i];
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Fall back to sanitizing the original text below.
+        }
+
+        String[] parts = nameSource.replaceAll("[^A-Za-z0-9]+", " ").trim().split("\\s+");
+        StringBuilder className = new StringBuilder();
+
+        for (String part : parts) {
+            if (!part.isBlank()) {
+                className.append(capitalizeFirstLetter(part));
+            }
+        }
+
+        if (className.isEmpty()) {
+            className.append("Api");
+        }
+
+        if (!Character.isJavaIdentifierStart(className.charAt(0))) {
+            className.insert(0, "Api");
+        }
+
+        return className.append("Wrapper").toString();
     }
 
     private String capitalizeFirstLetter(String str) {

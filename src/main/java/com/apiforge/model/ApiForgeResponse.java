@@ -4,13 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApiForgeResponse {
-    private List<EndpointInfo> endpoints;
+    private List<EndpointInfo> endpoints = new ArrayList<>();
     private String authMethod;
     private String baseUrl;
     private String generatedCode;

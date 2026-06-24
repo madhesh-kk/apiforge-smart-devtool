@@ -2,6 +2,7 @@ package com.apiforge.controller;
 
 import com.apiforge.model.ApiForgeRequest;
 import com.apiforge.model.ApiForgeResponse;
+import com.apiforge.model.EndpointInfo;
 import com.apiforge.service.ExtractorService;
 import com.apiforge.service.GeneratorService;
 import com.apiforge.service.ScraperService;
@@ -46,14 +47,26 @@ public class ApiForgeController {
 
             // Step 2: Extract endpoints using Claude AI
             log.info("Extracting endpoints for use case: {}", request.getUseCase());
-            ApiForgeResponse response = extractorService.extractEndpoints(scrapedContent, request.getUseCase());
+            ApiForgeResponse response;
+            try {
+                response = extractorService.extractEndpoints(scrapedContent, request.getUseCase());
+            } catch (Exception extractionError) {
+                log.warn("Claude extraction failed, returning demo output instead: {}", extractionError.getMessage());
+                response = createDemoResponse(request.getDocsUrl());
+            }
 
-            if (response.getEndpoints() == null || response.getEndpoints().isEmpty()) {
-                log.warn("No endpoints extracted from documentation");
+            if (response == null) {
+                log.warn("Failed to extract endpoints from documentation");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body("Failed to extract endpoints from documentation");
             }
 
+            if (response.getEndpoints() == null || response.getEndpoints().isEmpty()) {
+                log.warn("No endpoints were extracted from documentation");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("No endpoints were extracted. Check the documentation URL, use case, Claude API key, and configured Claude model.");
+            }
+            
             // Step 3: Generate Java wrapper code
             log.info("Generating Java wrapper code");
             String generatedCode = generatorService.generateJavaWrapper(response, request.getDocsUrl());
@@ -70,5 +83,28 @@ public class ApiForgeController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error generating API wrapper: " + e.getMessage());
         }
+    }
+
+    private ApiForgeResponse createDemoResponse(String docsUrl) {
+        ApiForgeResponse response = new ApiForgeResponse();
+        response.setBaseUrl("https://api.github.com");
+        response.setAuthMethod("Bearer Token");
+        response.getEndpoints().add(new EndpointInfo(
+                "/user/repos",
+                "GET",
+                "List repositories for the authenticated user"
+        ));
+        response.getEndpoints().add(new EndpointInfo(
+                "/repos/{owner}/{repo}",
+                "GET",
+                "Get repository details"
+        ));
+        response.getEndpoints().add(new EndpointInfo(
+                "/repos/{owner}/{repo}/issues",
+                "GET",
+                "List repository issues"
+        ));
+        response.setSdkSuggestion("Demo output shown because Claude API extraction is unavailable. Add Anthropic credits for live extraction from " + docsUrl);
+        return response;
     }
 }

@@ -4,5 +4,6 @@
 server.port=8080
 spring.application.name=APIForge
 claude.api.key=YOUR_CLAUDE_API_KEY_HERE
+claude.model=claude-3-5-haiku-latest
 spring.thymeleaf.cache=false
 logging.level.com.apiforge=DEBUG
